@@ -18,10 +18,10 @@ object Main {
   val masterUrl = "local"
 
   // input
-  val tmp     = "/Users/lolski/Playground/tremorvideo-problem1-part2/in"
-  val mapping = s"${tmp}/mapping.txt"
-  val in      = s"${tmp}/logs/log0.txt"
-  val out     = s"${tmp}/out.txt"
+  val tmp         = "/Users/lolski/Playground/tremorvideo-problem1-part2/in"
+  val countryCode = s"${tmp}/mapping.txt"
+  val in          = s"${tmp}/logs/log0.txt"
+  val out         = s"${tmp}/out.txt"
 
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf().setAppName(appName).setMaster(masterUrl)
@@ -44,5 +44,12 @@ object Main {
     }
 
     parsed
+  }
+
+  def sanitizeCountryName(countryName: String) = {
+    countryName.replaceAll("[^\\p{Alnum}\\s]", "")  // takes care of non-alphanumeric country name like 'Antigua & Barbuda'
+      .replaceAll("\\s+", " ")                      // removes multiple subsequent white spaces
+      .replaceAll(" ", "_")                         // replaces whitespace with underscore
+      .toLowerCase                                  // lower case
   }
 }
