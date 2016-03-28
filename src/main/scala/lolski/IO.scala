@@ -27,16 +27,11 @@ object IO {
     parsed
   }
 
-  def parseToInputRow(raw: String): User = {
+  def parseUser(raw: String): User = {
     // basic whitespace trimming before splitting on '&'
     val split = raw.replace(" ", "").split("&")
 
-    // no error handling since the problem set assumes that inputs are always valid
-    val parsed = split match {
-      case Array(code, age) => User(code, age.toInt)
-    }
-
-    parsed
+    User(split(0), split(1).toInt)
   }
 
   def sanitizeCountryName(countryName: String) = {
