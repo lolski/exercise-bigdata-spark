@@ -1,9 +1,7 @@
 package lolski
 
-import java.nio.file.{Paths, Files}
-
 import org.apache.spark.{SparkConf, SparkContext}
-import IO.{parseUser, parseToCountryCodeMapping, sanitizeCountryName}
+import IO.{parseLogEntry, parseCountryCodeMapEntry, sanitizeCountryName}
 
 /**
   * Created by lolski on 3/27/16.
@@ -25,48 +23,44 @@ import IO.{parseUser, parseToCountryCodeMapping, sanitizeCountryName}
   *     - this is implemented with Spark Core API. an alternative approach is to use DataFrame in the Spark SQL API
   */
 
-object Main {
+// application specific config
+object AppConf {
   // spark
-  val appName   = "lolski-tremorvideo-problem1-part2"
-  val masterUrl = "local"
+  val appName        = "lolski-tremorvideo-problem1-part2"
+  val masterUrl      = "local"
+  val partitionCount = 8
 
   // input
   val tmp          = "/Users/lolski/Playground/tremorvideo-problem1-part2/files"
   val countryCodes = s"$tmp/countryCodes.txt"
   val logs         = s"$tmp/logs"
   val out          = s"$tmp/out"
+}
 
+object Main {
   def main(args: Array[String]): Unit = {
-    val conf = new SparkConf().setAppName(appName).setMaster(masterUrl)
+    val conf = new SparkConf().setAppName(AppConf.appName).setMaster(AppConf.masterUrl)
     val ctx  = new SparkContext(conf)
 
     // cache in master as map for constant time get operation
-    val map = ctx.textFile(s"file:///$countryCodes")
-                 .map(parseToCountryCodeMapping)
+    val map = ctx.textFile(s"file:///${AppConf.countryCodes}")
+                 .map(parseCountryCodeMapEntry)
                  .collectAsMap()
 
     // collect all logs
-    val logRdd = ctx.textFile(s"file:///$logs/*")
+    val log = ctx.textFile(s"file:///${AppConf.logs}/*")
                     .map { raw =>
-                      val user = parseUser(raw)
+                      val user = parseLogEntry(raw)
                       (user -> user.age)
                     }
 
-//    val sortedRdd  = logRdd sortBy { e => (e.countryCode, e.age) } // sort by country code first, then age as the secondary field
+    val sorted = log repartitionAndSortWithinPartitions(
+        partitioner = new PartitionByCountryCode(partitions = AppConf.partitionCount)
+      )
 
-    val sortedRdd = logRdd repartitionAndSortWithinPartitions(new PartitionByCountryCode(8))
+    val withFileName = sorted map { case (LogEntry(code, _), age) => (sanitizeCountryName(map(code)), age) }
 
-    sortedRdd foreach { e =>
-      println(e)
-    }
-    //
-//    IO.deleteDir(out)
-
-//    sortedRdd foreach { e =>
-//      val country = sanitizeCountryName(map(e.countryCode))
-//      val dir = s"$out/$country"
-//      IO.append2(dir = dir, name = "sorted.txt", content = s"${e.age}")
-//    }
+    withFileName.saveAsHadoopFile(AppConf.out, classOf[Integer], classOf[String], classOf[KeyAsFileNameOutput[Integer, String]])
 
     ctx.stop()
   }

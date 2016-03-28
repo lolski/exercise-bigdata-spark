@@ -12,6 +12,6 @@ class PartitionByCountryCode(partitions: Int) extends Partitioner {
   override def numPartitions: Int = partitions
 
   override def getPartition(key: Any): Int = key match {
-    case key: User => key.countryCode.hashCode % numPartitions
+    case key: LogEntry => key.countryCode.hashCode % numPartitions
   }
 }
