@@ -1,5 +1,7 @@
 package lolski
 
+import java.nio.file.Paths
+
 /**
   * Created by lolski on 3/27/16.
   */
@@ -30,4 +32,6 @@ object IO {
       .replaceAll(" ", "_")                         // replaces whitespace with underscore
       .toLowerCase                                  // lower case
   }
+
+  def getCwd = Paths.get("").toAbsolutePath.toString
 }

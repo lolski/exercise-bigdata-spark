@@ -26,15 +26,15 @@ import IO.{parseLogEntry, parseCountryCodeMapEntry, sanitizeCountryName}
 // application specific config
 object AppConf {
   // spark
-  val appName        = "lolski-tremorvideo-problem1-part2"
-  val masterUrl      = "local"
-  val partitionCount = 8
+  val appName         = "lolski-tremorvideo-problem1-part2"
+  val masterUrl       = "local"
+  val partitionCount  = 8
 
   // input
-  val tmp          = "/Users/lolski/Playground/tremorvideo-problem1-part2/files"
-  val countryCodes = s"$tmp/countryCodes.txt"
-  val logs         = s"$tmp/logs"
-  val out          = s"$tmp/out"
+  val baseTmp         = s"${IO.getCwd}/files"
+  val countryCodes    = s"$baseTmp/countryCodes.txt"
+  val logs            = s"$baseTmp/logs"
+  val out             = s"$baseTmp/out"
 }
 
 object Main {
@@ -44,19 +44,18 @@ object Main {
 
     // cache in master as map for constant time get operation
     val map = ctx.textFile(s"file:///${AppConf.countryCodes}")
-                 .map(parseCountryCodeMapEntry)
-                 .collectAsMap()
+      .map(parseCountryCodeMapEntry)
+      .collectAsMap()
 
     // collect all logs
     val log = ctx.textFile(s"file:///${AppConf.logs}/*")
-                    .map { raw =>
-                      val user = parseLogEntry(raw)
-                      (user -> user.age)
-                    }
+      .map { raw =>
+        val user = parseLogEntry(raw)
+        (user -> user.age)
+      }
 
     val sorted = log repartitionAndSortWithinPartitions(
-        partitioner = new PartitionByCountryCode(partitions = AppConf.partitionCount)
-      )
+      partitioner = new PartitionByCountryCode(AppConf.partitionCount))
 
     val withFileName = sorted map { case (LogEntry(code, _), age) => (sanitizeCountryName(map(code)), age) }
 
